@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Location Finder</title>
+
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+  >
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #f2f5f9;
+      color: #17202a;
+    }
+
+    .container {
+      width: 94%;
+      max-width: 600px;
+      margin: 20px auto;
+    }
+
+    .card {
+      background: white;
+      padding: 20px;
+      border-radius: 18px;
+      box-shadow: 0 8px 25px rgba(0,0,0,.08);
+    }
+
+    h1 {
+      text-align: center;
+      margin-top: 0;
+    }
+
+    .privacy {
+      background: #eef8ef;
+      padding: 13px;
+      border-radius: 12px;
+      font-size: 14px;
+      line-height: 1.5;
+      margin-bottom: 15px;
+    }
+
+    button {
+      width: 100%;
+      border: 0;
+      border-radius: 10px;
+      padding: 13px;
+      margin: 6px 0;
+      font-size: 16px;
+      cursor: pointer;
+    }
+
+    #locationBtn {
+      background: #1677ff;
+      color: white;
+    }
+
+    #refreshBtn {
+      background: #222;
+      color: white;
+    }
+
+    #shareBtn {
+      background: #168a45;
+      color: white;
+    }
+
+    #copyBtn {
+      background: #777;
+      color: white;
+    }
+
+    #refreshBtn:disabled {
+      opacity: .5;
+    }
+
+    #map {
+      height: 350px;
+      margin-top: 15px;
+      border-radius: 14px;
+      overflow: hidden;
+    }
+
+    .status {
+      text-align: center;
+      font-weight: bold;
+      margin: 12px 0;
+    }
+
+    .info {
+      background: #f7f7f7;
+      padding: 12px;
+      border-radius: 12px;
+      margin-top: 15px;
+      line-height: 1.9;
+    }
+
+    .small {
+      text-align: center;
+      color: #666;
+      font-size: 12px;
+      margin-top: 12px;
+    }
+  </style>
+</head>
+
+<body>
+
+<div class="container">
+  <div class="card">
+
+    <h1>📍 Location Finder</h1>
+
+    <div class="privacy">
+      🔒 <b>Privacy & Consent</b><br>
+      Your location is requested only after you press
+      <b>Allow My Location</b>. Your browser controls the permission.
+      This website does not secretly access your location.
+    </div>
+
+    <button id="locationBtn">
+      📍 Allow My Location
+    </button>
+
+    <button id="refreshBtn" disabled>
+      🔄 Refresh Location
+    </button>
+
+    <button id="shareBtn">
+      🔗 Share Link
+    </button>
+
+    <button id="copyBtn">
+      📋 Copy Link
+    </button>
+
+    <div class="status" id="status">
+      Location not selected
+    </div>
+
+    <div id="map"></div>
+
+    <div class="info">
+      <b>Latitude:</b>
+      <span id="latitude">---</span>
+      <br>
+
+      <b>Longitude:</b>
+      <span id="longitude">---</span>
+      <br>
+
+      <b>Accuracy:</b>
+      <span id="accuracy">---</span>
+      <br>
+
+      <b>Date:</b>
+      <span id="date">---</span>
+      <br>
+
+      <b>Time:</b>
+      <span id="time">---</span>
+    </div>
+
+    <div class="small">
+      Location is displayed in this browser after permission is granted.
+    </div>
+
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<script>
+  let map;
+  let marker;
+
+  map = L.map("map").setView([20, 0], 2);
+
+  L.tileLayer(
+    "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+    {
+      attribution: "&copy; OpenStreetMap contributors"
+    }
+  ).addTo(map);
+
+  function getLocation() {
+
+    const status = document.getElementById("status");
+
+    if (!navigator.geolocation) {
+      status.innerText = "❌ Geolocation is not supported.";
+      return;
+    }
+
+    status.innerText = "📡 Requesting location permission...";
+
+    navigator.geolocation.getCurrentPosition(
+
+      function(position) {
+
+        const lat = position.coords.latitude;
+        const lon = position.coords.longitude;
+        const accuracy = position.coords.accuracy;
+
+        document.getElementById("latitude").innerText =
+          lat.toFixed(6);
+
+        document.getElementById("longitude").innerText =
+          lon.toFixed(6);
+
+        document.getElementById("accuracy").innerText =
+          Math.round(accuracy) + " meters";
+
+        const now = new Date();
+
+        document.getElementById("date").innerText =
+          now.toLocaleDateString();
+
+        document.getElementById("time").innerText =
+          now.toLocaleTimeString();
+
+        status.innerText = "✅ Location received";
+
+        map.setView([lat, lon], 16);
+
+        if (marker) {
+          map.removeLayer(marker);
+        }
+
+        marker = L.marker([lat, lon])
+          .addTo(map)
+          .bindPopup(
+            "📍 Current location<br>" +
+            "Accuracy: " +
+            Math.round(accuracy) +
+            " meters"
+          )
+          .openPopup();
+
+        document.getElementById("refreshBtn").disabled = false;
+      },
+
+      function(error) {
+
+        if (error.code === 1) {
+          status.innerText =
+            "❌ Location permission was denied.";
+        } else if (error.code === 2) {
+          status.innerText =
+            "❌ Location is unavailable.";
+        } else if (error.code === 3) {
+          status.innerText =
+            "❌ Location request timed out.";
+        } else {
+          status.innerText =
+            "❌ Could not get location.";
+        }
+      },
+
+      {
+        enableHighAccuracy: true,
+        timeout: 15000,
+        maximumAge: 0
+      }
+    );
+  }
+
+  document
+    .getElementById("locationBtn")
+    .addEventListener("click", getLocation);
+
+  document
+    .getElementById("refreshBtn")
+    .addEventListener("click", getLocation);
+
+  document
+    .getElementById("copyBtn")
+    .addEventListener("click", async function() {
+
+      try {
+        await navigator.clipboard.writeText(
+          window.location.href
+        );
+
+        alert("✅ Link copied!");
+
+      } catch (error) {
+        alert("Please copy the URL manually.");
+      }
+    });
+
+  document
+    .getElementById("shareBtn")
+    .addEventListener("click", async function() {
+
+      const shareData = {
+        title: "Location Finder",
+        text: "Open this page and choose whether to share your location.",
+        url: window.location.href
+      };
+
+      if (navigator.share) {
+
+        try {
+          await navigator.share(shareData);
+        } catch (error) {
+          // Sharing cancelled
+        }
+
+      } else {
+
+        try {
+          await navigator.clipboard.writeText(
+            window.location.href
+          );
+
+          alert("✅ Link copied!");
+
+        } catch (error) {
+          alert("Please copy the URL manually.");
+        }
+      }
+    });
+</script>
+
+</body>
+</html>
